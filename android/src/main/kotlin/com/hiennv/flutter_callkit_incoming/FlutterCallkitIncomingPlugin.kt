@@ -6,6 +6,7 @@ import android.content.Context
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import androidx.annotation.NonNull
 import com.hiennv.flutter_callkit_incoming.Utils.Companion.reapCollection
 import io.flutter.embedding.engine.plugins.FlutterPlugin
@@ -43,7 +44,28 @@ class FlutterCallkitIncomingPlugin : FlutterPlugin, MethodCallHandler, ActivityA
         private val eventHandlers = mutableListOf<WeakReference<EventCallbackHandler>>()
         private val eventCallbacks = mutableListOf<WeakReference<CallkitEventCallback>>()
 
+       //**MODIFY THIS FUNCTION - ADD LOGGING AND CUSTOM METHOD INVOKE*/
         fun sendEvent(event: String, body: Map<String, Any?>) {
+            Log.d("CallKitPlugin", "sendEvent called: $event")
+            
+            //**Check if it's a decline action and invoke custom method*/
+            if (event == CallkitConstants.ACTION_CALL_DECLINE) {
+                Log.d("CallKitPlugin", "Decline action detected - invoking custom handler")
+                
+                //**Invoke CALL_DECLINED_CUSTOM on all active method channels*/
+                methodChannels.values.forEach { channel ->
+                    try {
+                        Handler(Looper.getMainLooper()).post {
+                            channel.invokeMethod("CALL_DECLINED_CUSTOM", body)
+                            Log.d("CallKitPlugin", "Invoked CALL_DECLINED_CUSTOM successfully")
+                        }
+                    } catch (e: Exception) {
+                        Log.e("CallKitPlugin", "Error invoking decline callback: ${e.message}")
+                    }
+                }
+            }
+            
+            //**Original event handling*/
             eventHandlers.reapCollection().forEach {
                 it.get()?.send(event, body)
             }
